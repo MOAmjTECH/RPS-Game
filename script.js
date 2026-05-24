@@ -29,6 +29,10 @@ const state = {
   roomCode:    null,
   isHost:      false,
 
+    currentTurn: 1,
+  p1LocalChoice: null,
+  p2LocalChoice: null,
+
   // game stats (reset per match)
   myScore:     0,
   oppScore:    0,
@@ -309,6 +313,26 @@ function startBotGame() {
   showScreen('game');
 }
 
+function startPassPlay() {
+
+  state.mode = 'passplay';
+
+  state.currentTurn = 1;
+  state.p1LocalChoice = null;
+  state.p2LocalChoice = null;
+
+  resetGameStats();
+
+  setupGameUI();
+
+  document.getElementById('score-p1-lbl').textContent = 'Player 1';
+  document.getElementById('score-p2-lbl').textContent = 'Player 2';
+
+  showStatus("Player 1's turn");
+
+  showScreen('game');
+}
+
 function enterGame() {
   resetGameStats();
   setupGameUI();
@@ -385,6 +409,75 @@ function playBot(choice) {
     applyResult(result, choice, cpuChoice);
   }, 280);
 }
+function playPassPlay(choice) {
+
+  // PLAYER 1
+  if (state.currentTurn === 1) {
+
+    state.p1LocalChoice = choice;
+
+    setArenaBox('arena-p1', 'locked', true);
+
+    showStatus("Pass device to Player 2");
+
+    state.currentTurn = 2;
+
+    state.roundLocked = false;
+    state.myChoice = null;
+
+    document.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      btn.disabled = false;
+    });
+
+    return;
+  }
+
+  // PLAYER 2
+  if (state.currentTurn === 2) {
+
+    state.p2LocalChoice = choice;
+
+    const p1 = state.p1LocalChoice;
+    const p2 = state.p2LocalChoice;
+
+    const result = getResult(p1, p2);
+
+    setArenaBox('arena-p1', p1, false);
+
+    setTimeout(() => {
+
+      setArenaBox('arena-p2', p2, false);
+
+      applyResult(result, p1, p2);
+
+      setTimeout(() => {
+
+        resetArena();
+
+        setResult(null, '');
+
+        enableChoices(true);
+
+        state.round++;
+
+        updateRoundTag();
+
+        state.currentTurn = 1;
+
+        state.p1LocalChoice = null;
+        state.p2LocalChoice = null;
+
+        state.myChoice = null;
+        state.roundLocked = false;
+
+        showStatus("Player 1's turn");
+
+      }, 2200);
+
+    }, 400);
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    2-PLAYER GAME LOGIC
@@ -401,10 +494,15 @@ function makeChoice(choice) {
     btn.disabled = true;
   });
 
-  if (state.mode === 'bot') {
+ if (state.mode === 'bot') {
     playBot(choice);
     return;
-  }
+}
+
+if (state.mode === 'passplay') {
+    playPassPlay(choice);
+    return;
+}
 
   // 2p: write choice to room
   const myKey = state.isHost ? 'p1Choice' : 'p2Choice';
